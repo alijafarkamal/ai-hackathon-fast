@@ -1,6 +1,6 @@
 import { useRef, useMemo, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Text, Sphere, Line, OrbitControls, Float, Stars } from '@react-three/drei';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Text, Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { ParsedOpportunity, StudentProfile } from '../lib/types';
 
@@ -43,17 +43,11 @@ function SkillNode({ node, isHovered, onHover }: {
   onHover: (id: string | null) => void;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
 
-  useFrame((state) => {
+  useFrame(() => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += 0.005;
-      const scale = isHovered ? 1.4 : 1;
+      const scale = isHovered ? 1.3 : 1;
       meshRef.current.scale.lerp(new THREE.Vector3(scale, scale, scale), 0.1);
-    }
-    if (glowRef.current) {
-      const pulse = 0.85 + Math.sin(state.clock.elapsedTime * 2 + node.id.length) * 0.15;
-      glowRef.current.scale.setScalar(isHovered ? 1.8 * pulse : 1.3 * pulse);
     }
   });
 
@@ -61,25 +55,13 @@ function SkillNode({ node, isHovered, onHover }: {
 
   return (
     <group position={node.position}>
-      {/* Glow sphere */}
-      <mesh ref={glowRef}>
-        <sphereGeometry args={[size * 1.5, 8, 8]} />
-        <meshBasicMaterial color={node.color} transparent opacity={0.06} />
-      </mesh>
-
-      {/* Main sphere */}
+      {/* Main sphere — low-poly, basic material (no lighting cost) */}
       <mesh ref={meshRef}
         onPointerOver={() => onHover(node.id)}
         onPointerOut={() => onHover(null)}
       >
-        <sphereGeometry args={[size, 16, 16]} />
-        <meshStandardMaterial
-          color={node.color}
-          emissive={node.color}
-          emissiveIntensity={isHovered ? 0.8 : 0.3}
-          metalness={0.3}
-          roughness={0.2}
-        />
+        <sphereGeometry args={[size, 8, 8]} />
+        <meshBasicMaterial color={isHovered ? '#ffffff' : node.color} />
       </mesh>
 
       {/* Label */}
@@ -89,14 +71,11 @@ function SkillNode({ node, isHovered, onHover }: {
         color={isHovered ? '#ffffff' : node.color}
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.01}
-        outlineColor="#000000"
         maxWidth={2}
       >
         {node.label}
       </Text>
 
-      {/* Fit score for opportunities */}
       {node.type === 'opportunity' && node.fitScore != null && (
         <Text
           position={[0, -(size + 0.18), 0]}
@@ -169,8 +148,8 @@ function SceneContent({ opportunities, profile }: Props) {
       connections.push({ from: 'student', to: `skill_${i}`, color: SKILL_COLORS[i % SKILL_COLORS.length], strength: 0.4 });
     });
 
-    // Opportunity nodes — arranged in outer ring
-    const topOpps = opportunities.slice(0, 8);
+    // Opportunity nodes — cap at 6 to keep draw calls low on CPU
+    const topOpps = opportunities.slice(0, 6);
     topOpps.forEach((opp, i) => {
       const angle = (i / Math.max(topOpps.length, 1)) * Math.PI * 2 + Math.PI / topOpps.length;
       const radius = 5.5;
@@ -219,18 +198,15 @@ function SceneContent({ opportunities, profile }: Props) {
 
   return (
     <>
-      <Stars radius={30} depth={50} count={1000} factor={2} fade speed={0.5} />
-      <ambientLight intensity={0.3} />
-      <pointLight position={[0, 5, 0]} intensity={1.5} color="#60a5fa" />
-      <pointLight position={[5, -3, 5]} intensity={0.8} color="#a78bfa" />
-      <pointLight position={[-5, 2, -5]} intensity={0.6} color="#34d399" />
+      {/* Single ambient light — no point lights (expensive on CPU) */}
+      <ambientLight intensity={0.9} />
 
       <OrbitControls
         enablePan={false}
         minDistance={4}
         maxDistance={20}
         autoRotate
-        autoRotateSpeed={0.5}
+        autoRotateSpeed={0.4}
       />
 
       {connections.map((conn, i) => {
@@ -248,14 +224,14 @@ function SceneContent({ opportunities, profile }: Props) {
         );
       })}
 
+      {/* No Float wrapper — saves per-frame CPU calculations */}
       {nodes.map(node => (
-        <Float key={node.id} speed={1} rotationIntensity={0.1} floatIntensity={0.3}>
-          <SkillNode
-            node={node}
-            isHovered={hoveredId === node.id}
-            onHover={setHoveredId}
-          />
-        </Float>
+        <SkillNode
+          key={node.id}
+          node={node}
+          isHovered={hoveredId === node.id}
+          onHover={setHoveredId}
+        />
       ))}
     </>
   );
@@ -315,7 +291,7 @@ export function SkillGraphViz({ opportunities, profile }: Props) {
         border: '1px solid var(--color-border)',
         background: 'radial-gradient(ellipse at center, #0a0f1e 0%, #07080f 100%)',
       }}>
-        <Canvas camera={{ position: [0, 4, 12], fov: 60 }} gl={{ antialias: true, alpha: true }}>
+        <Canvas camera={{ position: [0, 4, 12], fov: 60 }} dpr={1} gl={{ antialias: false, alpha: false, powerPreference: 'low-power' }}>
           <SceneContent opportunities={opportunities} profile={profile} />
         </Canvas>
       </div>

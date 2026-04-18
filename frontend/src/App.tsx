@@ -13,6 +13,7 @@ import { ClassificationBanner } from './components/ClassificationBanner';
 import { ComparisonTable } from './components/ComparisonTable';
 import { NearMissPanel } from './components/NearMissPanel';
 import { CalendarExportButton } from './components/CalendarExportButton';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { api, parseEmailsFromText, formatEmailsToText } from './lib/api';
 import type { ProcessResponse, StudentProfile } from './lib/types';
 
@@ -284,7 +285,7 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <ProcessingStream steps={reasoningSteps} />
+                <ProcessingStream steps={reasoningSteps} isProcessing={loading} />
               </motion.div>
             )}
 
@@ -322,6 +323,8 @@ export default function App() {
                 <div style={{ marginTop: 24 }}>
                   <NearMissPanel nearMisses={result.near_miss_opportunities} />
                 </div>
+
+                <AnalyticsDashboard opportunities={result.ranked_opportunities} />
               </motion.div>
             )}
 

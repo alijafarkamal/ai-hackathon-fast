@@ -23,6 +23,7 @@ from agent.state import InboxCopilotState
 from pydantic import BaseModel
 from typing import List, Optional
 from data.mock_emails import MOCK_EMAILS
+from mock_data import get_mock_result
 
 DEMO_PROFILE = StudentProfile(
     name="Ali Hassan",
@@ -243,6 +244,13 @@ async def process(req: ProcessRequest):
     except Exception as e:
         import traceback
         traceback.print_exc()
+        err = str(e).lower()
+        # On quota/rate-limit errors return rich mock data so demo always works
+        if "429" in err or "quota" in err or "rate limit" in err or "rate_limit" in err:
+            print(f"[main] ⚠️ LLM quota hit — returning mock data for demo")
+            mock = get_mock_result(session_id, total_scanned=len(req.emails))
+            sessions[session_id] = mock
+            return mock
         return {
             "error": str(e),
             "session_id": session_id,

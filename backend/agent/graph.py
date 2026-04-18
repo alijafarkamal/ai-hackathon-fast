@@ -9,7 +9,6 @@ from langgraph.graph import StateGraph, END, START
 from langgraph.types import Send
 from agent.state import InboxCopilotState
 from agent.nodes.dedup_node import dedup_node
-from agent.nodes.classifier_node import classifier_node_single
 from agent.nodes.extractor_node import extractor_node
 from agent.nodes.validator_node import validator_node
 from agent.nodes.urgency_node import urgency_node
@@ -20,18 +19,13 @@ from agent.nodes.action_node import action_node
 from agent.nodes.ics_export_node import ics_export_node
 from agent.nodes.report_node import report_node
 
-def fan_out_emails(state: InboxCopilotState):
-    """Generate a Send for each email — all classified in parallel."""
-    return [
-        Send("classify_email", {"email": email, "student_profile": state["student_profile"]})
-        for email in state["raw_emails"]
-    ]
+from agent.nodes.classifier_node import classifier_node
 
 def build_graph():
     graph = StateGraph(InboxCopilotState)
 
     graph.add_node("dedup", dedup_node)
-    graph.add_node("classify_email", classifier_node_single)  # runs N times in parallel
+    graph.add_node("classify_email", classifier_node)
     graph.add_node("extractor", extractor_node)
     graph.add_node("validator", validator_node)
     graph.add_node("urgency", urgency_node)
@@ -43,8 +37,8 @@ def build_graph():
     graph.add_node("report", report_node)
 
     graph.add_edge(START, "dedup")
-    graph.add_conditional_edges("dedup", fan_out_emails, ["classify_email"])
-    graph.add_edge("classify_email", "extractor")   # merge point
+    graph.add_edge("dedup", "classify_email")
+    graph.add_edge("classify_email", "extractor")
     graph.add_edge("extractor", "validator")
     graph.add_edge("validator", "urgency")
     graph.add_edge("urgency", "profile_matcher")
