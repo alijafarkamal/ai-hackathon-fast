@@ -56,7 +56,11 @@ def action_node(state: InboxCopilotState) -> dict:
     steps.append(f"[action_generator] Generating action checklists for {len(opps)} opportunities...")
 
     updated = []
-    for opp in opps:
+    for i, opp in enumerate(opps):
+        if i > 0:
+            import time
+            time.sleep(1.5)  # Stagger to avoid RPM limits
+            
         result = _generate_actions(opp, profile)
         action_steps = result.get("action_steps") or [
             "Review the full opportunity details carefully",

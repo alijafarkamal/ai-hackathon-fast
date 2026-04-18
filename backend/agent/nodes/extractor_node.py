@@ -101,7 +101,11 @@ def extractor_node(state: InboxCopilotState) -> dict:
     steps.append(f"[extractor] Extracting structured fields from {len(real_opps)} opportunities...")
 
     updated_opps = []
-    for opp in real_opps:
+    for i, opp in enumerate(real_opps):
+        if i > 0:
+            import time
+            time.sleep(1.5)  # Stagger to avoid RPM limits
+
         email = raw_email_map.get(opp.email_id)
         if not email:
             updated_opps.append(opp)

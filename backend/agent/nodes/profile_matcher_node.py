@@ -80,7 +80,11 @@ def profile_matcher_node(state: InboxCopilotState) -> InboxCopilotState:
     )
 
     updated = []
-    for opp in opps:
+    for i, opp in enumerate(opps):
+        if i > 0:
+            import time
+            time.sleep(1.5)  # Stagger to avoid RPM limits
+
         result = _match(opp, profile)
         fit = result.get("fit_score", 0.5)
         evidence_count = len(result.get("fit_evidence", []))

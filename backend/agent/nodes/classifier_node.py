@@ -61,12 +61,18 @@ def classifier_node_single(state: dict) -> dict:
     }
 
 
+import random
+import time
+
 def _classify_email(email) -> dict:
     prompt = CLASSIFY_PROMPT.format(
         subject=email.subject,
         sender=email.sender,
-        body=email.body[:1500],
+        body=email.body[:800],  # Reduced to avoid hitting Tokens Per Minute (TPM) limits on free tier
     )
+    # Add random jitter to stagger the 21 parallel requests
+    time.sleep(random.uniform(0.1, 1.5))
+    
     response = llm_generate(prompt)
     clean = re.sub(r"```(?:json)?|```", "", response).strip()
     try:
