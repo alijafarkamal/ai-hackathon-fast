@@ -1,8 +1,19 @@
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo, useState, Component } from 'react';
+import type { ReactNode, ErrorInfo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Text, Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { ParsedOpportunity, StudentProfile } from '../lib/types';
+
+// ── ErrorBoundary — catches WebGL/Three.js crashes so the whole app doesn't go blank ──
+class CanvasErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { crashed: boolean }> {
+  state = { crashed: false };
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn('[3D Graph] WebGL error — showing 2D fallback:', error.message, info);
+    this.setState({ crashed: true });
+  }
+  render() { return this.state.crashed ? this.props.fallback : this.props.children; }
+}
 
 interface Props {
   opportunities: ParsedOpportunity[];
@@ -107,6 +118,58 @@ function ConnectionLine({ from, to, color, strength }: {
       opacity={0.3 + strength * 0.4}
       dashed={false}
     />
+  );
+}
+
+// ── 2D fallback when WebGL/GPU not available ──────────────────────────────────
+function FallbackGraph({ opportunities, profile }: Props) {
+  const skills = profile?.skills || [];
+  return (
+    <div style={{
+      borderRadius: 14, border: '1px solid var(--color-border)',
+      background: '#07080f', padding: 24,
+    }}>
+      <div style={{ textAlign: 'center', marginBottom: 20, color: '#fbbf24', fontSize: 12 }}>
+        ⚠️ WebGL unavailable on this machine — showing 2D skill matrix
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+        {skills.map((skill, i) => {
+          const matched = opportunities.filter(o =>
+            [(o.title || ''), ...(o.eligibility_criteria || []), (o.opportunity_type || '')].join(' ').toLowerCase().includes(skill.toLowerCase()) || (o.fit_score || 0) > 0.7
+          );
+          const pct = opportunities.length ? matched.length / opportunities.length : 0;
+          const color = SKILL_COLORS[i % SKILL_COLORS.length];
+          return (
+            <div key={skill} style={{ padding: 14, borderRadius: 10, background: 'var(--color-surface)', border: `1px solid ${color}33` }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 6 }}>{skill}</div>
+              <div style={{ height: 4, background: 'var(--color-border)', borderRadius: 2, marginBottom: 6 }}>
+                <div style={{ height: '100%', width: `${pct * 100}%`, background: color, borderRadius: 2, transition: 'width 0.6s ease' }} />
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--color-text-faint)' }}>{matched.length} / {opportunities.length} opportunities matched</div>
+              <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {matched.slice(0, 2).map(o => (
+                  <span key={o.email_id} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${color}22`, color, border: `1px solid ${color}44` }}>
+                    {(o.title || '').slice(0, 18)}…
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+        {opportunities.map((o, i) => (
+          <div key={o.email_id} style={{
+            padding: '8px 12px', borderRadius: 8, fontSize: 11,
+            background: `${TYPE_COLORS[o.opportunity_type || 'OTHER'] || '#94a3b8'}18`,
+            border: `1px solid ${TYPE_COLORS[o.opportunity_type || 'OTHER'] || '#94a3b8'}44`,
+            color: TYPE_COLORS[o.opportunity_type || 'OTHER'] || '#94a3b8',
+          }}>
+            #{i + 1} {(o.title || '').slice(0, 28)} — {Math.round((o.fit_score || 0) * 100)}% fit
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -286,15 +349,17 @@ export function SkillGraphViz({ opportunities, profile }: Props) {
         </div>
       </div>
 
-      <div style={{
-        height: 520, borderRadius: 14, overflow: 'hidden',
-        border: '1px solid var(--color-border)',
-        background: 'radial-gradient(ellipse at center, #0a0f1e 0%, #07080f 100%)',
-      }}>
-        <Canvas camera={{ position: [0, 4, 12], fov: 60 }} dpr={1} gl={{ antialias: false, alpha: false, powerPreference: 'low-power' }}>
-          <SceneContent opportunities={opportunities} profile={profile} />
-        </Canvas>
-      </div>
+      <CanvasErrorBoundary fallback={<FallbackGraph opportunities={opportunities} profile={profile} />}>
+        <div style={{
+          height: 520, borderRadius: 14, overflow: 'hidden',
+          border: '1px solid var(--color-border)',
+          background: 'radial-gradient(ellipse at center, #0a0f1e 0%, #07080f 100%)',
+        }}>
+          <Canvas camera={{ position: [0, 4, 12], fov: 60 }} dpr={1} gl={{ antialias: false, alpha: false, powerPreference: 'low-power' }}>
+            <SceneContent opportunities={opportunities} profile={profile} />
+          </Canvas>
+        </div>
+      </CanvasErrorBoundary>
 
       {/* Skill match stats below */}
       <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>

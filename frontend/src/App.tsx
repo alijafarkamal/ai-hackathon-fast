@@ -14,6 +14,7 @@ import { ComparisonTable } from './components/ComparisonTable';
 import { NearMissPanel } from './components/NearMissPanel';
 import { CalendarExportButton } from './components/CalendarExportButton';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { LandingPage } from './components/LandingPage';
 import { api, parseEmailsFromText, formatEmailsToText } from './lib/api';
 import type { ProcessResponse, StudentProfile } from './lib/types';
 
@@ -21,6 +22,7 @@ type AppState = 'SETUP' | 'PROCESSING' | 'RESULTS';
 type SidebarTab = 'scanner' | 'results' | 'trace' | 'skills';
 
 export default function App() {
+  const [showLanding, setShowLanding] = useState(true);
   const [appState, setAppState] = useState<AppState>('SETUP');
   const [activeTab, setActiveTab] = useState<SidebarTab>('scanner');
   const [emailText, setEmailText] = useState('');
@@ -87,6 +89,16 @@ export default function App() {
     { id: 'trace' as SidebarTab, label: 'Agent Trace', icon: Terminal, available: appState === 'RESULTS' },
     { id: 'skills' as SidebarTab, label: '3D Skill Graph', icon: Network, available: appState === 'RESULTS' },
   ];
+
+  if (showLanding) {
+    return (
+      <AnimatePresence mode="wait">
+        <motion.div key="landing" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}>
+          <LandingPage onEnter={() => setShowLanding(false)} />
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--color-bg)' }}>
