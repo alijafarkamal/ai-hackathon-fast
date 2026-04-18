@@ -39,7 +39,7 @@ def build_graph():
     graph.add_node("near_miss", near_miss_node)
     graph.add_node("scorer", scorer_node)
     graph.add_node("action_generator", action_node)
-    graph.add_node("ics_export", ics_export_node)
+    graph.add_node("ics_generator", ics_export_node)
     graph.add_node("report", report_node)
 
     graph.add_edge(START, "dedup")
@@ -51,8 +51,8 @@ def build_graph():
     graph.add_edge("profile_matcher", "near_miss")
     graph.add_edge("near_miss", "scorer")
     graph.add_edge("scorer", "action_generator")
-    graph.add_edge("action_generator", "ics_export")
-    graph.add_edge("ics_export", "report")
+    graph.add_edge("action_generator", "ics_generator")
+    graph.add_edge("ics_generator", "report")
     graph.add_edge("report", END)
 
     return graph.compile()

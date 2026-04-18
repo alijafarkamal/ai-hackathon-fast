@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Inbox, BarChart3, Settings, Zap, ChevronRight,
-  RefreshCw, Download, Github, Terminal, AlertTriangle, CheckCircle2
+  Inbox, BarChart3, Network, Zap, ChevronRight,
+  RefreshCw, Terminal, AlertTriangle, CheckCircle2
 } from 'lucide-react';
+import { SkillGraphViz } from './components/SkillGraphViz';
 import { EmailInbox } from './components/EmailInbox';
 import { StudentProfileForm } from './components/StudentProfileForm';
 import { ProcessingStream } from './components/ProcessingStream';
@@ -16,7 +17,7 @@ import { api, parseEmailsFromText, formatEmailsToText } from './lib/api';
 import type { ProcessResponse, StudentProfile } from './lib/types';
 
 type AppState = 'SETUP' | 'PROCESSING' | 'RESULTS';
-type SidebarTab = 'scanner' | 'results' | 'trace';
+type SidebarTab = 'scanner' | 'results' | 'trace' | 'skills';
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('SETUP');
@@ -83,6 +84,7 @@ export default function App() {
     { id: 'scanner' as SidebarTab, label: 'Inbox Scanner', icon: Inbox, available: true },
     { id: 'results' as SidebarTab, label: 'Results', icon: BarChart3, available: appState === 'RESULTS' },
     { id: 'trace' as SidebarTab, label: 'Agent Trace', icon: Terminal, available: appState === 'RESULTS' },
+    { id: 'skills' as SidebarTab, label: '3D Skill Graph', icon: Network, available: appState === 'RESULTS' },
   ];
 
   return (
@@ -381,6 +383,16 @@ export default function App() {
             )}
 
           </AnimatePresence>
+
+            {/* SKILLS GRAPH TAB — outside AnimatePresence to avoid Canvas remount */}
+            {activeTab === 'skills' && appState === 'RESULTS' && result && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SkillGraphViz opportunities={result.ranked_opportunities} profile={profile} />
+              </motion.div>
+            )}
         </main>
       </div>
     </div>
