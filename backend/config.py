@@ -1,8 +1,8 @@
 """
-Unified LLM config with Gemini 2.5 Flash primary + Groq fallback.
+Unified LLM config with Gemini 1.5 Flash primary + Groq fallback.
 NEVER import LLM clients directly in nodes — always use llm_generate() from here.
 
-Gemini 2.5 Flash docs: https://ai.google.dev/gemini-api/docs/models
+Gemini docs: https://ai.google.dev/gemini-api/docs/models
 Groq docs: https://console.groq.com/docs/openai
 """
 import os
@@ -11,13 +11,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-04-17")
+# Use gemini-1.5-flash — confirmed stable free-tier model
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 GROQ_API_KEY   = os.getenv("GROQ_API_KEY")
 GROQ_MODEL     = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 # ── Gemini client ────────────────────────────────────────────────────────────
 import google.generativeai as genai
-genai.configure(api_key=GEMINI_API_KEY)
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 # ── Groq client ──────────────────────────────────────────────────────────────
 try:
@@ -29,7 +31,7 @@ except ImportError:
 
 def llm_generate(prompt: str, system: str = "", use_groq: bool = False) -> str:
     """
-    Unified LLM call. Tries Gemini 2.5 Flash first, falls back to Groq on rate limit.
+    Unified LLM call. Tries Gemini 1.5 Flash first, falls back to Groq on ANY failure.
 
     Args:
         prompt:    User message / full prompt
@@ -50,24 +52,21 @@ def llm_generate(prompt: str, system: str = "", use_groq: bool = False) -> str:
         response = model.generate_content(
             prompt,
             generation_config=genai.GenerationConfig(
-                temperature=0.1,          # Low temp for extraction accuracy
+                temperature=0.1,
                 max_output_tokens=4096,
             ),
         )
         return response.text
     except Exception as e:
-        err = str(e).lower()
-        if any(k in err for k in ("quota", "rate", "429", "resource_exhausted")):
-            # Graceful fallback to Groq
-            print(f"[config] Gemini rate limit — falling back to Groq: {e}")
-            return _groq_generate(prompt, system)
-        raise
+        # Fall back to Groq on ANY error (not just rate limits)
+        print(f"[config] Gemini failed — falling back to Groq: {e}")
+        return _groq_generate(prompt, system)
 
 
 def _groq_generate(prompt: str, system: str = "") -> str:
-    """Groq Llama call."""
+    """Groq Llama call with robust error handling."""
     if not groq_client:
-        raise RuntimeError("Groq client not available. Set GROQ_API_KEY.")
+        raise RuntimeError("No LLM available. Set GROQ_API_KEY or GEMINI_API_KEY.")
 
     messages = []
     if system:

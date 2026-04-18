@@ -1,77 +1,152 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Cpu, Activity } from 'lucide-react';
 
-interface Props { steps: string[]; }
+interface Props {
+  steps: string[];
+}
+
+const NODE_COLORS: Record<string, string> = {
+  dedup: '#a78bfa',
+  classifier: '#60a5fa',
+  classify: '#60a5fa',
+  extractor: '#34d399',
+  extract: '#34d399',
+  validator: '#fbbf24',
+  urgency: '#fb923c',
+  profile_matcher: '#f472b6',
+  near_miss: '#fb7185',
+  scorer: '#c084fc',
+  action: '#6ee7b7',
+  ics: '#38bdf8',
+  report: '#a3e635',
+  system: '#60a5fa',
+};
+
+function getNodeColor(step: string) {
+  const lower = step.toLowerCase();
+  for (const [key, color] of Object.entries(NODE_COLORS)) {
+    if (lower.includes(`[${key}]`) || lower.includes(key)) return color;
+  }
+  return 'rgba(255,255,255,0.65)';
+}
+
+function getNodeName(step: string) {
+  const match = step.match(/\[([^\]]+)\]/);
+  return match ? match[1].toUpperCase() : 'SYSTEM';
+}
 
 export function ProcessingStream({ steps }: Props) {
-  const [displayed, setDisplayed] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let i = 0;
-    setDisplayed([]);
-    const interval = setInterval(() => {
-      if (i < steps.length) {
-        setDisplayed(prev => [...prev, steps[i]]);
-        i++;
-      } else {
-        clearInterval(interval);
-      }
-    }, 120);
-    return () => clearInterval(interval);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [steps]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [displayed]);
-
-  const getColor = (step: string) => {
-    if (step.includes('✅')) return '#51cf66';
-    if (step.includes('🗑️')) return 'rgba(255,255,255,0.3)';
-    if (step.includes('[classifier]')) return '#74c0fc';
-    if (step.includes('[extractor]')) return '#da77f2';
-    if (step.includes('[urgency]')) return '#ffa94d';
-    if (step.includes('[profile_matcher]')) return '#63e6be';
-    if (step.includes('[scorer]')) return '#ffd43b';
-    if (step.includes('[action_generator]')) return '#f783ac';
-    if (step.includes('[report]')) return '#69db7c';
-    return 'rgba(255,255,255,0.7)';
-  };
+  const PIPELINE_NODES = ['DEDUP', 'CLASSIFY', 'EXTRACTOR', 'VALIDATOR', 'URGENCY', 'PROFILE_MATCHER', 'NEAR_MISS', 'SCORER', 'ACTION', 'ICS', 'REPORT'];
+  const activeNodes = steps.map(s => getNodeName(s));
 
   return (
-    <div style={{ padding: '32px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#51cf66',
-          boxShadow: '0 0 8px #51cf66', animation: displayed.length < steps.length ? 'pulse 1s infinite' : 'none' }} />
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
-          {displayed.length < steps.length ? 'Analyzing your inbox...' : '✓ Analysis complete'}
-        </h2>
-      </div>
-
-      <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)',
-        padding: '16px', fontFamily: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
-        fontSize: 12.5, maxHeight: 420, overflowY: 'auto', lineHeight: 1.7 }}>
-        {displayed.map((step, i) => (
-          <div key={i} style={{ color: getColor(step), marginBottom: 2 }}>
-            <span style={{ color: 'rgba(255,255,255,0.2)', marginRight: 8 }}>{String(i + 1).padStart(2, '0')}</span>
-            {step}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ position: 'relative' }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--color-primary-glow)', border: '1px solid var(--color-primary-border)'
+          }}>
+            <Cpu size={18} color="var(--color-primary)" />
           </div>
-        ))}
-        {displayed.length < steps.length && (
-          <div style={{ color: '#74c0fc' }}>▌</div>
-        )}
-        <div ref={bottomRef} />
+          <div style={{
+            position: 'absolute', top: -3, right: -3,
+            width: 10, height: 10, borderRadius: '50%', background: 'var(--color-warning)',
+            boxShadow: '0 0 8px var(--color-warning)', animation: 'ping 1s cubic-bezier(0,0,0.2,1) infinite'
+          }} />
+        </div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#e8eaf0' }}>LangGraph Pipeline Running</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+            Parallel fan-out via Send API · {steps.length} steps
+          </div>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Activity size={13} color="var(--color-warning)" />
+          <span style={{ fontSize: 12, color: 'var(--color-warning)', fontWeight: 600 }}>Processing</span>
+        </div>
       </div>
 
-      {displayed.length < steps.length && (
-        <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-          {['Classifying', 'Extracting', 'Scoring', 'Ranking'].map((label, i) => (
-            <div key={label} style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              {label}
-              {i < 3 && <span style={{ color: 'rgba(255,255,255,0.1)' }}>→</span>}
+      {/* Pipeline Node Flow */}
+      <div style={{
+        padding: '14px 16px', borderRadius: 12,
+        background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap'
+      }}>
+        {PIPELINE_NODES.map((node, i) => {
+          const isActive = activeNodes.some(n => n.includes(node));
+          return (
+            <div key={node} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{
+                padding: '4px 10px', borderRadius: 6, fontSize: 10.5, fontWeight: 700, fontFamily: 'monospace',
+                background: isActive ? (NODE_COLORS[node.toLowerCase()] + '22') : 'transparent',
+                border: `1px solid ${isActive ? (NODE_COLORS[node.toLowerCase()] || 'var(--color-border)') + '55' : 'var(--color-border)'}`,
+                color: isActive ? (NODE_COLORS[node.toLowerCase()] || 'var(--color-text-muted)') : 'var(--color-text-faint)',
+                transition: 'all 0.3s ease'
+              }}>
+                {node}
+              </div>
+              {i < PIPELINE_NODES.length - 1 && (
+                <span style={{ color: 'var(--color-text-faint)', fontSize: 10 }}>→</span>
+              )}
             </div>
-          ))}
+          );
+        })}
+      </div>
+
+      {/* Terminal Log */}
+      <div style={{
+        background: '#050709', border: '1px solid var(--color-border)', borderRadius: 12,
+        overflow: 'hidden', minHeight: 320
+      }}>
+        {/* Terminal bar */}
+        <div style={{
+          padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--color-border)',
+          display: 'flex', alignItems: 'center', gap: 8
+        }}>
+          <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#f87171' }} />
+          <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#fbbf24' }} />
+          <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#34d399' }} />
+          <span style={{ marginLeft: 10, fontSize: 11, color: 'var(--color-text-faint)', fontFamily: 'monospace' }}>
+            opportunity-copilot · agent execution trace
+          </span>
         </div>
-      )}
+        <div style={{ padding: '14px 16px', fontFamily: 'monospace', fontSize: 12, lineHeight: 1.9, maxHeight: 420, overflowY: 'auto' }}>
+          <AnimatePresence>
+            {steps.map((step, i) => {
+              const color = getNodeColor(step);
+              return (
+                <motion.div key={i}
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ display: 'flex', gap: 10, marginBottom: 2, color }}>
+                  <span style={{ color: 'var(--color-text-faint)', minWidth: 24, textAlign: 'right' }}>
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <span style={{ opacity: 0.55 }}>›</span>
+                  <span>{step}</span>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+          {steps.length > 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <span style={{ color: 'var(--color-primary)' }}>$</span>
+              <span className="animate-blink" style={{ color: 'var(--color-primary)' }}>_</span>
+            </motion.div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </div>
     </div>
   );
 }

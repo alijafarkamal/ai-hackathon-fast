@@ -1,43 +1,55 @@
-import React from 'react';
+import { motion } from 'framer-motion';
+import { Zap, CheckCircle2, Clock, Filter, Copy2, Users } from 'lucide-react';
 
-interface Props { 
-  total: number; 
-  real: number; 
+interface Props {
+  total: number;
+  real: number;
   noise: number;
   dedup: number;
 }
 
+const STATS = (total: number, real: number, noise: number, dedup: number) => [
+  {
+    label: 'Emails Scanned', value: total, icon: '📧',
+    color: 'var(--color-primary)', glow: 'var(--color-primary-glow)', border: 'var(--color-primary-border)'
+  },
+  {
+    label: 'Real Opportunities', value: real, icon: '✅',
+    color: 'var(--color-success)', glow: 'var(--color-success-glow)', border: 'rgba(52,211,153,0.3)'
+  },
+  {
+    label: 'Noise Filtered', value: noise, icon: '🗑️',
+    color: 'var(--color-text-muted)', glow: 'var(--color-surface-2)', border: 'var(--color-border)'
+  },
+  {
+    label: 'Duplicates Removed', value: dedup, icon: '🔁',
+    color: 'var(--color-warning)', glow: 'var(--color-warning-glow)', border: 'rgba(251,191,36,0.3)'
+  },
+];
+
 export function ClassificationBanner({ total, real, noise, dedup }: Props) {
+  const stats = STATS(total, real, noise, dedup);
   return (
-    <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 12,
-      border: '1px solid rgba(255,255,255,0.08)', padding: '20px 24px', marginBottom: 24 }}>
-      <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Stat label="Emails Scanned" value={total} color="rgba(255,255,255,0.7)" icon="📬" />
-        <Arrow />
-        <Stat label="Real Opportunities" value={real} color="#51cf66" icon="✅" />
-        <Arrow />
-        <Stat label="Duplicates Merged" value={dedup} color="#fcc419" icon="🔗" />
-        <Arrow />
-        <Stat label="Noise Filtered" value={noise} color="rgba(255,255,255,0.35)" icon="🗑️" />
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <Zap size={15} color="var(--color-primary)" />
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#e8eaf0' }}>Scan Complete</span>
+        <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>— AI agent processed {total} emails in parallel</span>
       </div>
-      <div style={{ marginTop: 12, fontSize: 13, color: 'rgba(255,255,255,0.4)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
-        Ranked by profile fit ({'>'}40%), urgency (35%), and information completeness (25%). Confidence weighted. Showing highest priority first.
-      </div>
-    </div>
-  );
-}
-
-function Arrow() {
-  return <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 20 }}>→</span>;
-}
-
-function Stat({ label, value, color, icon }: { label: string; value: number; color: string; icon: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ fontSize: 24 }}>{icon}</span>
-      <div>
-        <div style={{ fontSize: 28, fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{label}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+        {stats.map((stat, i) => (
+          <motion.div key={i}
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08 }}
+            style={{
+              padding: '14px 16px', borderRadius: 12,
+              background: stat.glow, border: `1px solid ${stat.border}`,
+            }}>
+            <div style={{ fontSize: 20, marginBottom: 6 }}>{stat.icon}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: stat.color, lineHeight: 1 }}>{stat.value}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--color-text-muted)', marginTop: 5, fontWeight: 500 }}>{stat.label}</div>
+          </motion.div>
+        ))}
       </div>
     </div>
   );

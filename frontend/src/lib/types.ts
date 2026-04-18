@@ -1,4 +1,4 @@
-export interface RankedOpportunity {
+export interface ParsedOpportunity {
   email_id: string;
   is_opportunity: boolean;
   classification_confidence: number;
@@ -24,6 +24,9 @@ export interface RankedOpportunity {
   priority_rank?: number;
   action_steps?: string[];
 }
+
+// Alias for backward compatibility
+export type RankedOpportunity = ParsedOpportunity;
 
 export interface StudentProfile {
   name: string;
@@ -54,6 +57,7 @@ export interface RawEmail {
 export interface NearMiss {
   email_id: string;
   title: string | null;
+  organization?: string | null;
   fit_score: number;
   bridge_message: string;
   gaps: string[];
@@ -65,7 +69,7 @@ export interface ProcessResponse {
   total_real: number;
   noise_count: number;
   dedup_count: number;
-  ranked_opportunities: RankedOpportunity[];
+  ranked_opportunities: ParsedOpportunity[];
   near_miss_opportunities: NearMiss[];
   reasoning_steps: string[];
 }

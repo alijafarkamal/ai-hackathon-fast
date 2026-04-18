@@ -1,157 +1,236 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { RadialBarChart, RadialBar, Cell, ResponsiveContainer, PolarAngleAxis } from 'recharts';
+import { ChevronDown, ChevronUp, ExternalLink, Calendar, MapPin, FileText, CheckSquare, Award } from 'lucide-react';
 import { UrgencyBadge } from './UrgencyBadge';
-import { FitScoreRing } from './FitScoreRing';
 import { ActionChecklist } from './ActionChecklist';
-import type { RankedOpportunity } from '../lib/types';
+import type { ParsedOpportunity } from '../lib/types';
 
-interface Props { opportunity: RankedOpportunity; rank: number; }
+interface Props {
+  opportunity: ParsedOpportunity;
+  rank: number;
+}
 
-const TYPE_META: Record<string, { color: string; bg: string; icon: string }> = {
-  SCHOLARSHIP: { color: '#74c0fc', bg: 'rgba(116,192,252,0.12)', icon: '🎓' },
-  FELLOWSHIP: { color: '#da77f2', bg: 'rgba(218,119,242,0.12)', icon: '🔬' },
-  COMPETITION: { color: '#ffa94d', bg: 'rgba(255,169,77,0.12)', icon: '🏆' },
-  INTERNSHIP: { color: '#63e6be', bg: 'rgba(99,230,190,0.12)', icon: '💼' },
-  ADMISSION: { color: '#ffd43b', bg: 'rgba(255,212,59,0.12)', icon: '🏫' },
-  JOB: { color: '#a9e34b', bg: 'rgba(169,227,75,0.12)', icon: '💻' },
-  WORKSHOP: { color: '#f783ac', bg: 'rgba(247,131,172,0.12)', icon: '🎯' },
-  CONFERENCE: { color: '#69db7c', bg: 'rgba(105,219,124,0.12)', icon: '📣' },
-  OTHER: { color: 'rgba(255,255,255,0.4)', bg: 'rgba(255,255,255,0.06)', icon: '📌' },
+const TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  SCHOLARSHIP: { bg: 'rgba(96,165,250,0.15)', text: '#60a5fa', border: 'rgba(96,165,250,0.3)' },
+  INTERNSHIP: { bg: 'rgba(52,211,153,0.15)', text: '#34d399', border: 'rgba(52,211,153,0.3)' },
+  FELLOWSHIP: { bg: 'rgba(167,139,250,0.15)', text: '#a78bfa', border: 'rgba(167,139,250,0.3)' },
+  COMPETITION: { bg: 'rgba(251,191,36,0.15)', text: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
+  JOB: { bg: 'rgba(248,113,113,0.15)', text: '#f87171', border: 'rgba(248,113,113,0.3)' },
+  WORKSHOP: { bg: 'rgba(110,231,183,0.15)', text: '#6ee7b7', border: 'rgba(110,231,183,0.3)' },
+  CONFERENCE: { bg: 'rgba(56,189,248,0.15)', text: '#38bdf8', border: 'rgba(56,189,248,0.3)' },
+  ADMISSION: { bg: 'rgba(244,114,182,0.15)', text: '#f472b6', border: 'rgba(244,114,182,0.3)' },
+  OTHER: { bg: 'rgba(255,255,255,0.08)', text: '#9ca3af', border: 'rgba(255,255,255,0.12)' },
 };
 
+const RANK_COLORS = ['#fbbf24', '#94a3b8', '#c084fc'];
+
+function FitRing({ score }: { score: number }) {
+  const pct = Math.round(score * 100);
+  const color = pct >= 80 ? '#34d399' : pct >= 60 ? '#fbbf24' : '#f87171';
+  const data = [{ value: pct }, { value: 100 - pct }];
+  return (
+    <div style={{ position: 'relative', width: 64, height: 64 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <RadialBarChart innerRadius={22} outerRadius={30} data={data} startAngle={90} endAngle={-270} barSize={7}>
+          <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+          <RadialBar background={{ fill: 'rgba(255,255,255,0.06)' }} dataKey="value" cornerRadius={6} angleAxisId={0}>
+            <Cell fill={color} />
+            <Cell fill="transparent" />
+          </RadialBar>
+        </RadialBarChart>
+      </ResponsiveContainer>
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center'
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color, lineHeight: 1 }}>{pct}%</span>
+        <span style={{ fontSize: 8, color: 'var(--color-text-faint)', lineHeight: 1, marginTop: 1 }}>fit</span>
+      </div>
+    </div>
+  );
+}
+
 export function OpportunityCard({ opportunity: opp, rank }: Props) {
-  const [showEvidence, setShowEvidence] = useState(false);
-  const [showActions, setShowActions] = useState(rank <= 2);
-  const typeMeta = TYPE_META[opp.opportunity_type || 'OTHER'] || TYPE_META['OTHER'];
-  const isTop = rank === 1;
+  const [expanded, setExpanded] = useState(rank === 1);
+  const typeStyle = TYPE_COLORS[opp.opportunity_type || 'OTHER'] || TYPE_COLORS.OTHER;
+  const rankColor = rank <= 3 ? RANK_COLORS[rank - 1] : 'var(--color-text-faint)';
+  const priorityPct = opp.priority_score != null ? Math.round(opp.priority_score * 100) : 0;
 
   return (
     <div style={{
-      background: isTop ? 'rgba(116,192,252,0.05)' : 'rgba(255,255,255,0.03)',
-      border: isTop ? '1px solid rgba(116,192,252,0.3)' : '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 14, padding: '20px 24px',
-      boxShadow: isTop ? '0 0 24px rgba(116,192,252,0.08)' : 'none',
-      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+      background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+      borderRadius: 14, overflow: 'hidden', transition: 'all 0.2s ease',
+      boxShadow: rank === 1 ? '0 0 0 1px rgba(251,191,36,0.2), 0 8px 32px rgba(0,0,0,0.4)' : '0 4px 16px rgba(0,0,0,0.3)',
     }}>
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+      <div style={{
+        padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14,
+        background: 'var(--color-surface-2)', cursor: 'pointer', userSelect: 'none'
+      }} onClick={() => setExpanded(!expanded)}>
         {/* Rank badge */}
         <div style={{
-          width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-          background: isTop ? 'rgba(116,192,252,0.2)' : 'rgba(255,255,255,0.06)',
-          color: isTop ? '#74c0fc' : 'rgba(255,255,255,0.4)',
-          border: isTop ? '1.5px solid rgba(116,192,252,0.4)' : '1px solid rgba(255,255,255,0.1)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 14, fontWeight: 700,
+          width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: rank <= 3 ? `${rankColor}22` : 'var(--color-surface)',
+          border: `1px solid ${rank <= 3 ? rankColor + '55' : 'var(--color-border)'}`,
+          fontSize: 14, fontWeight: 800, color: rankColor, flexShrink: 0
         }}>
-          #{rank}
+          {rank <= 3 ? ['🥇','🥈','🥉'][rank-1] : `#${rank}`}
         </div>
 
-        {/* Main content */}
+        {/* Title + org */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Title + type badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-            <span style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>
-              {opp.title || opp.email_id}
-            </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11,
-              padding: '2px 9px', borderRadius: 20, background: typeMeta.bg,
-              color: typeMeta.color, fontWeight: 600, letterSpacing: '0.04em' }}>
-              {typeMeta.icon} {opp.opportunity_type || 'OPPORTUNITY'}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#e8eaf0', margin: 0, lineHeight: 1.3 }}>
+              {opp.title || 'Untitled Opportunity'}
+            </h3>
+            {opp.opportunity_type && (
+              <span style={{
+                fontSize: 10.5, padding: '2px 8px', borderRadius: 20, fontWeight: 700,
+                background: typeStyle.bg, color: typeStyle.text, border: `1px solid ${typeStyle.border}`
+              }}>
+                {opp.opportunity_type}
+              </span>
+            )}
           </div>
-
-          {/* Organization */}
-          {opp.organization && (
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>
-              {opp.organization} {opp.location ? `• ${opp.location}` : ''}
-            </div>
-          )}
-
-          {/* Urgency + benefit */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <UrgencyBadge daysRemaining={opp.days_remaining} urgencyScore={opp.urgency_score || 0} />
-            {opp.stipend_or_benefit && (
-              <span style={{ fontSize: 12, color: '#69db7c', fontWeight: 600 }}>
-                💰 {opp.stipend_or_benefit}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+            {opp.organization && (
+              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Award size={11} /> {opp.organization}
+              </span>
+            )}
+            {opp.location && (
+              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <MapPin size={11} /> {opp.location}
               </span>
             )}
           </div>
         </div>
 
-        {/* Fit score ring */}
-        <FitScoreRing score={opp.fit_score || 0} size={60} />
+        {/* Right: fit ring + urgency + score */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          {opp.fit_score != null && <FitRing score={opp.fit_score} />}
+          {opp.days_remaining != null && <UrgencyBadge daysRemaining={opp.days_remaining} />}
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-primary)' }}>{priorityPct}</div>
+            <div style={{ fontSize: 10, color: 'var(--color-text-faint)' }}>score</div>
+          </div>
+          {expanded ? <ChevronUp size={15} color="var(--color-text-faint)" /> : <ChevronDown size={15} color="var(--color-text-faint)" />}
+        </div>
       </div>
 
-      {/* Why this matters */}
-      {opp.why_this_matters && (
-        <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,255,255,0.04)',
-          borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: 'rgba(255,255,255,0.8)',
-          borderLeft: `3px solid ${typeMeta.color}` }}>
-          {opp.why_this_matters}
-        </div>
-      )}
+      {/* Priority bar */}
+      <div style={{ height: 3, background: 'var(--color-border)' }}>
+        <div style={{
+          height: '100%', width: `${priorityPct}%`,
+          background: 'linear-gradient(90deg, var(--color-primary), var(--color-violet))',
+          transition: 'width 0.8s ease'
+        }} />
+      </div>
 
-      {/* Score breakdown row */}
-      <div style={{ marginTop: 14, display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11,
-        color: 'rgba(255,255,255,0.35)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
-        <span>Priority: <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{((opp.priority_score || 0) * 100).toFixed(0)}%</strong></span>
-        <span>Fit: <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{((opp.fit_score || 0) * 100).toFixed(0)}%</strong></span>
-        <span>Urgency: <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{((opp.urgency_score || 0) * 100).toFixed(0)}%</strong></span>
-        <span>Completeness: <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{((opp.completeness_score || 0) * 100).toFixed(0)}%</strong></span>
-        {opp.application_link && (
-          <a href={opp.application_link} target="_blank" rel="noopener noreferrer"
-            style={{ marginLeft: 'auto', color: '#74c0fc', fontSize: 12, textDecoration: 'none', fontWeight: 500 }}>
-            Apply Now →
-          </a>
+      {/* Expanded content */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                {/* Left */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Details */}
+                  <div style={{
+                    padding: '14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: 8
+                  }}>
+                    {opp.deadline && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                        <Calendar size={13} color="var(--color-warning)" />
+                        <span style={{ color: 'var(--color-text-muted)' }}>Deadline:</span>
+                        <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>{opp.deadline}</span>
+                      </div>
+                    )}
+                    {opp.stipend_or_benefit && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                        <span style={{ fontSize: 13 }}>💰</span>
+                        <span style={{ color: 'var(--color-text-muted)' }}>Benefit:</span>
+                        <span style={{ color: '#e8eaf0', fontWeight: 600 }}>{opp.stipend_or_benefit}</span>
+                      </div>
+                    )}
+                    {opp.application_link && (
+                      <a href={opp.application_link} target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--color-primary)', textDecoration: 'none' }}>
+                        <ExternalLink size={13} /> Apply Now
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Fit Evidence */}
+                  {opp.fit_evidence && opp.fit_evidence.length > 0 && (
+                    <div style={{ padding: '14px', borderRadius: 10, background: 'var(--color-success-glow)', border: '1px solid rgba(52,211,153,0.2)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-success)', marginBottom: 8, letterSpacing: '0.06em' }}>
+                        ✅ WHY YOU QUALIFY
+                      </div>
+                      {opp.fit_evidence.map((e, i) => (
+                        <div key={i} style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 4, display: 'flex', gap: 6 }}>
+                          <span style={{ color: 'var(--color-success)', flexShrink: 0 }}>•</span> {e}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Fit Gaps */}
+                  {opp.fit_gaps && opp.fit_gaps.length > 0 && (
+                    <div style={{ padding: '14px', borderRadius: 10, background: 'var(--color-danger-glow)', border: '1px solid rgba(248,113,113,0.2)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-danger)', marginBottom: 8, letterSpacing: '0.06em' }}>
+                        ⚠️ GAPS TO ADDRESS
+                      </div>
+                      {opp.fit_gaps.map((g, i) => (
+                        <div key={i} style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 4, display: 'flex', gap: 6 }}>
+                          <span style={{ color: 'var(--color-danger)', flexShrink: 0 }}>✗</span> {g}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Required docs */}
+                  {opp.required_documents && opp.required_documents.length > 0 && (
+                    <div style={{ padding: '14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--color-border)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <FileText size={11} /> REQUIRED DOCUMENTS
+                      </div>
+                      {opp.required_documents.map((doc, i) => (
+                        <div key={i} style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 4, display: 'flex', gap: 6 }}>
+                          <span style={{ color: 'var(--color-primary)' }}>→</span> {doc}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {opp.why_this_matters && (
+                    <div style={{ padding: '14px', borderRadius: 10, background: 'rgba(167,139,250,0.08)', border: '1px solid var(--color-violet-border)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-violet)', marginBottom: 8, letterSpacing: '0.06em' }}>
+                        🎯 WHY THIS MATTERS
+                      </div>
+                      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', lineHeight: 1.65, margin: 0 }}>
+                        {opp.why_this_matters}
+                      </p>
+                    </div>
+                  )}
+                  {opp.action_steps && opp.action_steps.length > 0 && (
+                    <ActionChecklist steps={opp.action_steps} />
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
         )}
-      </div>
-
-      {/* Evidence trail toggle */}
-      <button onClick={() => setShowEvidence(!showEvidence)} style={{
-        marginTop: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-        fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span>{showEvidence ? '▼' : '▶'}</span>
-        Why ranked #{rank}?
-        <span style={{ color: 'rgba(255,255,255,0.25)' }}>
-          ({(opp.fit_evidence || []).length} matches · {(opp.fit_gaps || []).length} gaps)
-        </span>
-      </button>
-
-      {showEvidence && (
-        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {(opp.fit_evidence || []).map((e, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12.5, color: '#69db7c', alignItems: 'flex-start' }}>
-              <span>✓</span><span>{e}</span>
-            </div>
-          ))}
-          {(opp.fit_gaps || []).map((g, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12.5, color: '#ff6b6b', alignItems: 'flex-start' }}>
-              <span>✗</span><span>{g}</span>
-            </div>
-          ))}
-          {/* Eligibility criteria */}
-          {(opp.eligibility_criteria || []).length > 0 && (
-            <div style={{ marginTop: 6, padding: '8px 12px', background: 'rgba(255,255,255,0.03)',
-              borderRadius: 6, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-              <div style={{ marginBottom: 4, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>Eligibility Requirements:</div>
-              {opp.eligibility_criteria?.map((c, i) => <div key={i}>• {c}</div>)}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Action checklist toggle */}
-      {(opp.action_steps || []).length > 0 && (
-        <>
-          <button onClick={() => setShowActions(!showActions)} style={{
-            marginTop: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-            fontSize: 12, color: typeMeta.color, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>{showActions ? '▼' : '▶'}</span>
-            Action checklist ({opp.action_steps!.length} steps)
-          </button>
-          {showActions && <ActionChecklist steps={opp.action_steps!} opportunityId={opp.email_id} />}
-        </>
-      )}
+      </AnimatePresence>
     </div>
   );
 }

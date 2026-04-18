@@ -1,12 +1,6 @@
-import React from 'react';
-
-interface NearMiss {
-  email_id: string;
-  title: string | null;
-  fit_score: number;
-  bridge_message: string;
-  gaps: string[];
-}
+import { motion } from 'framer-motion';
+import { AlertTriangle, TrendingUp } from 'lucide-react';
+import type { NearMiss } from '../lib/types';
 
 interface Props {
   nearMisses: NearMiss[];
@@ -16,52 +10,65 @@ export function NearMissPanel({ nearMisses }: Props) {
   if (!nearMisses || nearMisses.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 40, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 32 }}>
-      <h3 style={{ fontSize: 20, color: 'rgba(255,255,255,0.9)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>🎯</span> Near Misses 
-        <span style={{ fontSize: 12, background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 12, color: 'rgba(255,255,255,0.6)' }}>
-          Almost qualified
-        </span>
-      </h3>
-      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 24 }}>
-        You don't perfectly match these opportunities yet, but here's how you can bridge the gap.
-      </p>
-
-      <div style={{ display: 'grid', gap: 16 }}>
-        {nearMisses.map((nm, i) => (
-          <div key={i} style={{ 
-            background: 'rgba(255,255,255,0.03)', 
-            border: '1px solid rgba(255,255,255,0.06)', 
-            borderRadius: 8,
-            padding: 20 
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <h4 style={{ fontSize: 16, fontWeight: 600, color: '#e5e5e5' }}>
-                {nm.title || "Unknown Opportunity"}
-              </h4>
-              <div style={{ color: '#fcc419', fontWeight: 600, fontSize: 14 }}>
-                {Math.round(nm.fit_score * 100)}% Fit
-              </div>
-            </div>
-            
-            <div style={{ background: 'rgba(252, 196, 25, 0.1)', color: '#fcc419', padding: '12px 16px', borderRadius: 6, fontSize: 14, marginBottom: 16, borderLeft: '3px solid #fcc419' }}>
-              <strong>Bridge the gap:</strong> {nm.bridge_message}
-            </div>
-
-            {nm.gaps && nm.gaps.length > 0 && (
-              <div>
-                <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
-                  Missing Requirements
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <AlertTriangle size={16} color="var(--color-warning)" />
+        <h3 style={{ fontSize: 15, fontWeight: 700, color: '#e8eaf0', margin: 0 }}>
+          Near Misses — {nearMisses.length} opportunities you almost qualify for
+        </h3>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {nearMisses.map((nm, i) => {
+          const fitPct = Math.round(nm.fit_score * 100);
+          return (
+            <motion.div key={nm.email_id}
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              style={{
+                padding: '16px 18px', borderRadius: 12,
+                background: 'var(--color-warning-glow)',
+                border: '1px solid rgba(251,191,36,0.25)',
+              }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 14 }}>⚠️</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#e8eaf0' }}>
+                      {nm.title || 'Unnamed Opportunity'}
+                    </span>
+                    {nm.organization && (
+                      <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>· {nm.organization}</span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: 12.5, color: 'var(--color-warning)', margin: '0 0 10px', lineHeight: 1.6, fontStyle: 'italic' }}>
+                    {nm.bridge_message}
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {nm.gaps.map((gap, j) => (
+                      <span key={j} style={{
+                        fontSize: 11.5, padding: '3px 10px', borderRadius: 20, fontWeight: 500,
+                        background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)',
+                        color: 'var(--color-warning)'
+                      }}>
+                        ✗ {gap}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <ul style={{ margin: 0, paddingLeft: 18, color: 'rgba(255,255,255,0.6)', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {nm.gaps.map((gap, j) => (
-                    <li key={j}>{gap}</li>
-                  ))}
-                </ul>
+                <div style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                  padding: '10px 14px', borderRadius: 10,
+                  background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)',
+                  flexShrink: 0
+                }}>
+                  <TrendingUp size={14} color="var(--color-warning)" />
+                  <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-warning)' }}>{fitPct}%</span>
+                  <span style={{ fontSize: 10, color: 'var(--color-text-faint)' }}>fit match</span>
+                </div>
               </div>
-            )}
-          </div>
-        ))}
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
