@@ -57,7 +57,7 @@ def extract_opportunity(email_subject: str, email_body: str) -> ExtractionOutput
         import google.generativeai as genai
         if os.getenv("GEMINI_API_KEY"):
             client = instructor.from_gemini(
-                client=genai.GenerativeModel("gemini-1.5-flash"),
+                client=genai.GenerativeModel("gemini-2.5-flash"),
                 mode=instructor.Mode.GEMINI_JSON,
             )
             return client.chat.completions.create(
