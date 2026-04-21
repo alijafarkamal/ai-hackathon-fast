@@ -129,3 +129,8 @@ GROQ_API_KEY=your_groq_api_key       # https://console.groq.com (free)
 ---
 
 *Built for SOFTEC 2026 AI Hackathon — InvoZone sponsored track*
+
+---
+
+## Contributors
+- Zohaib
